@@ -8,6 +8,8 @@ import net.orcinus.galosphere.Galosphere;
 public class GItemTags {
 
     public static final TagKey<Item> SPARKLE_TEMPT_ITEMS = create("sparkle_tempt_items");
+    public static final TagKey<Item> SPARKLE_BREED_ITEMS = create("sparkle_breed_items");
+    public static final TagKey<Item> SPARKLE_ANY_TEMPT_ITEMS = create("sparkle_any_tempt_items");
     public static final TagKey<Item> SPECTRE_TEMPT_ITEMS = create("spectre_tempt_items");
     public static final TagKey<Item> NON_SINKABLES_HORSE_ARMORS = create("non_sinkable_horse_armors");
     public static final TagKey<Item> BOMB_DURATION_MODIFIERS = create("bomb_duration_modifiers");

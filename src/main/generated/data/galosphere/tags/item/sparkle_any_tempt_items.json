@@ -1,0 +1,12 @@
+{
+  "values": [
+    {
+      "id": "#galosphere:sparkle_tempt_items",
+      "required": false
+    },
+    {
+      "id": "#galosphere:sparkle_breed_items",
+      "required": false
+    }
+  ]
+}

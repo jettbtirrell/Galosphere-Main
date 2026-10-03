@@ -17,8 +17,8 @@ import java.util.Map;
 
 @Environment(EnvType.CLIENT)
 public class SparkleRenderer extends MobRenderer<Sparkle, EntityModel<Sparkle>> {
-    private static final Map<Sparkle.CrystalType, ResourceLocation> TEXTURE_BY_TYPE = Util.make(Maps.newHashMap(), (map) -> {
-        for (Sparkle.CrystalType type : Sparkle.CrystalType.values()) {
+    private static final Map<Sparkle.BirthType, ResourceLocation> TEXTURE_BY_TYPE = Util.make(Maps.newHashMap(), (map) -> {
+        for (Sparkle.BirthType type : Sparkle.BirthType.values()) {
             map.put(type, Galosphere.id(String.format("textures/entity/sparkle/%s_sparkle.png", type.getName())));
         }
     });
@@ -26,11 +26,14 @@ public class SparkleRenderer extends MobRenderer<Sparkle, EntityModel<Sparkle>> 
 
     public SparkleRenderer(EntityRendererProvider.Context context) {
         super(context, new SparkleModel<>(context.bakeLayer(GModelLayers.SPARKLE)), 0.4F);
+        // Collar layer (client/renderer/layer/SparkleCollarLayer) is disabled until real
+        // collar textures exist — it currently has nothing but a fallback missing-texture
+        // to render, which draws as a full-body checkerboard duplicate instead of a collar.
     }
 
     @Override
     public ResourceLocation getTextureLocation(Sparkle entity) {
-        return entity.getVariant() == Sparkle.CrystalType.NONE ? TEXTURE : TEXTURE_BY_TYPE.get(entity.getVariant());
+        return entity.hasCrystal() ? TEXTURE_BY_TYPE.get(entity.getVariant()) : TEXTURE;
     }
 
 }

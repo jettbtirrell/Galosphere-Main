@@ -20,6 +20,7 @@ import net.orcinus.galosphere.entities.PinkSaltShard;
 import net.orcinus.galosphere.entities.Preserved;
 import net.orcinus.galosphere.entities.SilverBomb;
 import net.orcinus.galosphere.entities.Sparkle;
+import net.orcinus.galosphere.entities.SparkleSpit;
 import net.orcinus.galosphere.entities.SpectatorVision;
 import net.orcinus.galosphere.entities.Specterpillar;
 import net.orcinus.galosphere.entities.Spectre;
@@ -41,6 +42,7 @@ public class GEntityTypes {
     public static final EntityType<Preserved> PRESERVED = register("preserved", EntityType.Builder.of(Preserved::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8).build(Galosphere.id("preserved").toString()));
     public static final EntityType<PinkSaltPillar> PINK_SALT_PILLAR = register("pink_salt_pillar", EntityType.Builder.<PinkSaltPillar>of(PinkSaltPillar::new, MobCategory.MISC).sized(0.7F, 1.5F).clientTrackingRange(16).fireImmune().build(Galosphere.id("pink_salt_pillar").toString()));
     public static final EntityType<PinkSaltShard> PINK_SALT_SHARD = register("pink_salt_shard", EntityType.Builder.<PinkSaltShard>of(PinkSaltShard::new, MobCategory.MISC).sized(0.5F, 0.5F).clientTrackingRange(4).updateInterval(20).build(Galosphere.id("pink_salt_shard").toString()));
+    public static final EntityType<SparkleSpit> SPARKLE_SPIT = register("sparkle_spit", EntityType.Builder.<SparkleSpit>of(SparkleSpit::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(20).build(Galosphere.id("sparkle_spit").toString()));
 
     private static <T extends Entity> EntityType<T> register(String id, EntityType<T> builder) {
         EntityType<T> type = Registry.register(BuiltInRegistries.ENTITY_TYPE, Galosphere.id(id), builder);

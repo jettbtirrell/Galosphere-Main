@@ -29,7 +29,7 @@ public class PickaxeDispenseItemBehavior extends OptionalDispenseItemBehavior {
     private static boolean extractItemFromEntity(ServerLevel world, BlockPos blockPos, ItemStack stack) {
         for (Sparkle livingentity : world.getEntitiesOfClass(Sparkle.class, new AABB(blockPos), EntitySelector.NO_SPECTATORS)) {
             if (livingentity != null) {
-                if (livingentity.getVariant() != Sparkle.CrystalType.NONE) {
+                if (livingentity.hasCrystal()) {
                     livingentity.extractShard(stack);
                     world.gameEvent(null, GameEvent.SHEAR, blockPos);
                     return true;

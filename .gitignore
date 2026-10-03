@@ -17,6 +17,9 @@ out
 build
 .gradle
 
+# datagen incremental-build cache (pure bookkeeping, regenerated locally)
+src/main/generated/.cache/
+
 # other
 eclipse
 run

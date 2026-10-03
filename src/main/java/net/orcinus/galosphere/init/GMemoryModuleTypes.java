@@ -17,6 +17,7 @@ public class GMemoryModuleTypes {
     public static final Map<ResourceLocation, MemoryModuleType<?>> MEMORY_MODULE_TYPES = Maps.newLinkedHashMap();
 
     public static final MemoryModuleType<BlockPos> NEAREST_POLLINATED_CLUSTER = register("nearest_pollinated_cluster");
+    public static final MemoryModuleType<BlockPos> SIT_ORIGIN = register("sit_origin");
     public static final MemoryModuleType<Unit> POLLINATED_COOLDOWN = register("pollinated_cooldown", Codec.unit(Unit.INSTANCE));
     public static final MemoryModuleType<Boolean> CAN_BURY = register("can_bury", Codec.BOOL);
     public static final MemoryModuleType<BlockPos> NEAREST_LICHEN_MOSS = register("nearest_lichen_moss");

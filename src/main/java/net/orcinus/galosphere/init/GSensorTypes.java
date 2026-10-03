@@ -13,6 +13,7 @@ import net.orcinus.galosphere.entities.ai.SpectreAi;
 import net.orcinus.galosphere.entities.ai.sensors.BerserkerEntitySensor;
 import net.orcinus.galosphere.entities.ai.sensors.NearestLichenMossSensor;
 import net.orcinus.galosphere.entities.ai.sensors.NearestPollinatedClusterSensor;
+import net.orcinus.galosphere.entities.ai.sensors.OwnerCombatSensor;
 import net.orcinus.galosphere.entities.ai.sensors.PreservedEntitySensor;
 
 import java.util.Map;
@@ -24,6 +25,7 @@ public class GSensorTypes {
     public static final SensorType<TemptingSensor> SPARKLE_TEMPTATIONS = register("sparkle_temptations", () -> new TemptingSensor(SparkleAi.getTemptations()));
     public static final SensorType<TemptingSensor> SPECTRE_TEMPTATIONS = register("spectre_temptations", () -> new TemptingSensor(SpectreAi.getTemptations()));
     public static final SensorType<NearestPollinatedClusterSensor> NEAREST_POLLINATED_CLUSTER = register("nearest_pollinated_cluster", NearestPollinatedClusterSensor::new);
+    public static final SensorType<OwnerCombatSensor> OWNER_COMBAT_SENSOR = register("owner_combat_sensor", OwnerCombatSensor::new);
     public static final SensorType<NearestLichenMossSensor> NEAREST_LICHEN_MOSS = register("nearest_lichen_moss", NearestLichenMossSensor::new);
 //    public static final SensorType<NearestStoneSensor> NEAREST_STONE = register("nearest_stone", NearestStoneSensor::new);
     public static final SensorType<BerserkerEntitySensor> BLIGHTED_ENTITY_SENSOR = register("blighted_entity_sensor", BerserkerEntitySensor::new);

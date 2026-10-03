@@ -29,6 +29,8 @@ public class GItemTagsProvider extends FabricTagProvider.ItemTagProvider {
         this.getOrCreateTagBuilder(GItemTags.BOMB_EXPLOSION_MODIFIERS).add(Items.GUNPOWDER);
         this.getOrCreateTagBuilder(GItemTags.NON_SINKABLES_HORSE_ARMORS).add(GItems.STERLING_HORSE_ARMOR, Items.LEATHER_HORSE_ARMOR);
         this.getOrCreateTagBuilder(GItemTags.SPARKLE_TEMPT_ITEMS).add(Items.GLOW_LICHEN);
+        this.getOrCreateTagBuilder(GItemTags.SPARKLE_BREED_ITEMS).add(GItems.ALLURITE_SHARD, GItems.LUMIERE_SHARD);
+        this.getOrCreateTagBuilder(GItemTags.SPARKLE_ANY_TEMPT_ITEMS).addOptionalTag(GItemTags.SPARKLE_TEMPT_ITEMS).addOptionalTag(GItemTags.SPARKLE_BREED_ITEMS);
         this.getOrCreateTagBuilder(GItemTags.SPECTRE_TEMPT_ITEMS).add(GBlocks.LICHEN_SHELF.asItem());
         this.getOrCreateTagBuilder(GItemTags.SALTBOUND_TABLET_ENCHANTABLE).add(GItems.SALTBOUND_TABLET);
         this.getOrCreateTagBuilder(GItemTags.STONEFISH_REPELLENT).addOptionalTag(ItemTags.CLUSTER_MAX_HARVESTABLES);
