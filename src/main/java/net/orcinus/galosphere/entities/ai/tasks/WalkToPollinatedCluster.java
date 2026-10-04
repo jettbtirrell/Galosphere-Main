@@ -71,7 +71,7 @@ public class WalkToPollinatedCluster extends Behavior<Sparkle> {
             } else {
                 this.stuckTicks++;
             }
-            BehaviorUtils.setWalkAndLookTargetMemories(entity, blockPos, 2.0F, 0);
+            BehaviorUtils.setWalkAndLookTargetMemories(entity, blockPos, 1.5F, 0);
         });
     }
 

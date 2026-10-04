@@ -1,6 +1,8 @@
 package net.orcinus.galosphere;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.minecraft.server.level.ServerPlayer;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
@@ -11,6 +13,7 @@ import net.orcinus.galosphere.crafting.GlintingManager;
 import net.orcinus.galosphere.crafting.LumiereReformingManager;
 import net.orcinus.galosphere.entities.Sparkle;
 import net.orcinus.galosphere.entities.Spectre;
+import net.orcinus.galosphere.entities.Sparkle;
 import net.orcinus.galosphere.init.GAttributes;
 import net.orcinus.galosphere.init.GBiomeModifier;
 import net.orcinus.galosphere.init.GBlockEntityTypes;
@@ -45,6 +48,11 @@ public class Galosphere implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof ServerPlayer player) {
+                Sparkle.recallOwnedSparkles(player);
+            }
+        });
         GItems.init();
         GBlocks.init();
         GSoundEvents.init();

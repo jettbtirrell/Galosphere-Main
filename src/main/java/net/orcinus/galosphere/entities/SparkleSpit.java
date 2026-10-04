@@ -1,5 +1,8 @@
 package net.orcinus.galosphere.entities;
 
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -18,7 +21,7 @@ import net.orcinus.galosphere.init.GEntityTypes;
 
 public class SparkleSpit extends AbstractArrow {
     private static final int MAX_LIFE_TICKS = 100;
-    private Sparkle.BirthType birthType = Sparkle.BirthType.ALLURITE;
+    private static final EntityDataAccessor<Integer> DATA_BIRTH_TYPE = SynchedEntityData.defineId(SparkleSpit.class, EntityDataSerializers.INT);
     private int ticksAlive;
 
     public SparkleSpit(EntityType<? extends AbstractArrow> entityType, Level level) {
@@ -28,13 +31,19 @@ public class SparkleSpit extends AbstractArrow {
     public SparkleSpit(Sparkle shooter, Level level) {
         super(GEntityTypes.SPARKLE_SPIT, level);
         this.setOwner(shooter);
-        this.birthType = shooter.getVariant();
+        this.entityData.set(DATA_BIRTH_TYPE, shooter.getVariant().getId());
         this.setBaseDamage(5.0F);
         this.setNoGravity(true);
     }
 
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_BIRTH_TYPE, Sparkle.BirthType.ALLURITE.getId());
+    }
+
     public Sparkle.BirthType getBirthType() {
-        return this.birthType;
+        return Sparkle.BirthType.BY_ID.apply(this.entityData.get(DATA_BIRTH_TYPE));
     }
 
     @Override
@@ -55,12 +64,13 @@ public class SparkleSpit extends AbstractArrow {
                 || target == shooterOwner
                 || (shooterOwner != null && target instanceof OwnableEntity ownable && shooterOwner.getUUID().equals(ownable.getOwnerUUID()));
         if (!skip) {
+            float healthBefore = target instanceof LivingEntity living ? living.getHealth() : 0.0F;
             super.onHitEntity(result);
-            if (target instanceof LivingEntity living) {
-                if (this.birthType == Sparkle.BirthType.LUMIERE) {
+            if (target instanceof LivingEntity living && living.getHealth() < healthBefore) {
+                if (this.getBirthType() == Sparkle.BirthType.LUMIERE) {
                     living.setRemainingFireTicks(100);
                 } else {
-                    living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 0, false, true));
+                    living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 2, false, true));
                 }
             }
         }

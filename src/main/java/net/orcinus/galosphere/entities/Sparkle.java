@@ -3,6 +3,7 @@ package net.orcinus.galosphere.entities;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -12,6 +13,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.ByIdMap;
 import net.minecraft.util.Mth;
@@ -38,6 +40,7 @@ import net.minecraft.world.entity.VariantHolder;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.control.SmoothSwimmingMoveControl;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
@@ -51,6 +54,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -60,6 +64,7 @@ import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.orcinus.galosphere.crafting.GlintingManager;
+import net.orcinus.galosphere.Galosphere;
 import net.orcinus.galosphere.entities.ai.SparkleAi;
 import net.orcinus.galosphere.entities.navigation.SemiAquaticPathNavigation;
 import net.orcinus.galosphere.init.GBlockTags;
@@ -79,6 +84,9 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
     private static final EntityDataAccessor<Integer> BIRTH_TYPE = SynchedEntityData.defineId(Sparkle.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> HAS_CRYSTAL = SynchedEntityData.defineId(Sparkle.class, EntityDataSerializers.BOOLEAN);
     private static final UniformInt PERSISTENT_ANGER_TIME = UniformInt.of(400, 800);
+    private static final int TELEPORT_SCAN_DEPTH = 64;
+    private static final int TELEPORT_COOLDOWN_TICKS = 40;
+    private int lastTeleportTick = -TELEPORT_COOLDOWN_TICKS;
     private static final byte CRYSTAL_MAXED_EVENT = 20;
     protected static final ImmutableList<? extends SensorType<? extends Sensor<? super Sparkle>>> SENSOR_TYPES = ImmutableList.of(SensorType.NEAREST_LIVING_ENTITIES, SensorType.HURT_BY, GSensorTypes.SPARKLE_TEMPTATIONS, GSensorTypes.NEAREST_POLLINATED_CLUSTER, GSensorTypes.OWNER_COMBAT_SENSOR, SensorType.IS_IN_WATER);
     protected static final ImmutableList<? extends MemoryModuleType<?>> MEMORY_TYPES = ImmutableList.of(MemoryModuleType.LOOK_TARGET, MemoryModuleType.NEAREST_LIVING_ENTITIES, MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, MemoryModuleType.WALK_TARGET, MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryModuleType.PATH, MemoryModuleType.BREED_TARGET, MemoryModuleType.TEMPTING_PLAYER, MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, MemoryModuleType.IS_TEMPTED, MemoryModuleType.HURT_BY, MemoryModuleType.HURT_BY_ENTITY, MemoryModuleType.NEAREST_ATTACKABLE, MemoryModuleType.IS_IN_WATER, MemoryModuleType.IS_PANICKING, GMemoryModuleTypes.NEAREST_POLLINATED_CLUSTER, GMemoryModuleTypes.POLLINATED_COOLDOWN, GMemoryModuleTypes.SIT_ORIGIN, MemoryModuleType.ATTACK_TARGET, MemoryModuleType.ATTACK_COOLING_DOWN);
@@ -93,7 +101,7 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
         super(type, world);
         this.setPathfindingMalus(PathType.WATER, 4.0F);
         this.setPathfindingMalus(PathType.TRAPDOOR, -1.0F);
-        this.moveControl = new SmoothSwimmingMoveControl(this, 85, 10, 1.1F, 1.0F, true);
+        this.moveControl = new AmphibiousMoveControl(this);
     }
 
     @Override
@@ -135,7 +143,21 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
         this.level().getProfiler().push("sparkleActivityUpdate");
         SparkleAi.updateActivity(this);
         this.level().getProfiler().pop();
+        if (this.tickCount % 20 == 0) {
+            this.logSpeedDebug();
+        }
         super.customServerAiStep();
+    }
+
+    public static void recallOwnedSparkles(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        if (!player.getRespawnDimension().equals(level.dimension())) {
+            return;
+        }
+        BlockPos respawn = player.getRespawnPosition() != null ? player.getRespawnPosition() : level.getSharedSpawnPos();
+        level.getChunk(respawn.getX() >> 4, respawn.getZ() >> 4);
+        level.getEntities(EntityTypeTest.forClass(Sparkle.class), sparkle -> sparkle.isTame() && !sparkle.isOrderedToSit() && player.getUUID().equals(sparkle.getOwnerUUID()))
+                .forEach(sparkle -> sparkle.teleportToGroundFrom(respawn));
     }
 
     @Override
@@ -219,6 +241,36 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
     protected void sendDebugPackets() {
         super.sendDebugPackets();
         DebugPackets.sendEntityBrain(this);
+    }
+
+    private static class AmphibiousMoveControl extends MoveControl {
+        private final SmoothSwimmingMoveControl swimming;
+
+        AmphibiousMoveControl(Mob mob) {
+            super(mob);
+            this.swimming = new SmoothSwimmingMoveControl(mob, 85, 10, 1.1F, 1.0F, true);
+        }
+
+        @Override
+        public void setWantedPosition(double x, double y, double z, double speed) {
+            super.setWantedPosition(x, y, z, speed);
+            this.swimming.setWantedPosition(x, y, z, speed);
+        }
+
+        @Override
+        public void strafe(float forward, float side) {
+            super.strafe(forward, side);
+            this.swimming.strafe(forward, side);
+        }
+
+        @Override
+        public void tick() {
+            if (this.mob.isInWater()) {
+                this.swimming.tick();
+            } else {
+                super.tick();
+            }
+        }
     }
 
     @Override
@@ -330,6 +382,85 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
         return BirthType.byId(this.entityData.get(BIRTH_TYPE));
     }
 
+    @Override
+    public void tryToTeleportToOwner() {
+        if (this.tickCount - this.lastTeleportTick < TELEPORT_COOLDOWN_TICKS) {
+            return;
+        }
+        LivingEntity owner = this.getOwner();
+        if (owner != null && this.teleportToGroundFrom(owner.blockPosition())) {
+            this.lastTeleportTick = this.tickCount;
+        }
+    }
+
+    public boolean teleportToGroundFrom(BlockPos from) {
+        BlockPos ground = this.findGroundBelow(from);
+        if (ground == null) {
+            return false;
+        }
+        this.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5);
+        return true;
+    }
+
+    private BlockPos findGroundBelow(BlockPos from) {
+        int lowest = Math.max(this.level().getMinBuildHeight(), from.getY() - TELEPORT_SCAN_DEPTH);
+        for (BlockPos feet = from; feet.getY() >= lowest; feet = feet.below()) {
+            BlockPos support = feet.below();
+            boolean freeSpace = this.level().getBlockState(feet).getCollisionShape(this.level(), feet).isEmpty() && this.level().getFluidState(feet).isEmpty();
+            boolean solidSupport = this.level().getBlockState(support).isFaceSturdy(this.level(), support, Direction.UP);
+            if (freeSpace && solidSupport) {
+                return feet;
+            }
+        }
+        return null;
+    }
+
+    private void logSpeedDebug() {
+        var vel = this.getDeltaMovement();
+        float moveDirYaw = (float) (Mth.atan2(vel.z, vel.x) * (180.0 / Math.PI)) - 90.0F;
+        float yawErr = Mth.wrapDegrees(moveDirYaw - this.getYRot());
+        var owner = this.getOwner();
+        var nav = this.getNavigation();
+        var path = nav.getPath();
+        var walk = this.getBrain().getMemory(MemoryModuleType.WALK_TARGET).map(t -> t.getTarget().toString()).orElse("none");
+        var attack = this.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).map(e -> e.getName().getString()).orElse("none");
+        var activity = this.getBrain().getActiveNonCoreActivity().map(Object::toString).orElse("none");
+        var modifiers = this.getAttribute(Attributes.MOVEMENT_SPEED).getModifiers().stream().map(m -> m.id() + "=" + m.amount()).toList();
+        var effects = this.getActiveEffects().stream().map(e -> e.getEffect().getRegisteredName() + "x" + (e.getAmplifier() + 1) + "/" + e.getDuration()).toList();
+        Galosphere.LOGGER.info("[SparkleSpeed] id={} pos=({}, {}, {}) vel=({}, {}, {}) horizBps={} attrBase={} attrValue={} attrModifiers={} effects={} onGround={} inWater={} swimming={} inPowderSnow={} inBlock={} blockBelow={} crystal={} baby={} sitting={} tamed={} ownerDist={} walk={} attack={} activity={} navDone={} navPathNodes={} navPathIndex={} navStuck={} tickCount={} fallDist={} yRot={} yBodyRot={} yHeadRot={} moveDirYaw={} yawErr={} moveCtrl={} moveHasWanted={} moveSpeedMod={} getSpeed={} lookTarget={} coolingDown={}",
+                this.getId(),
+                String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()),
+                String.format("%.3f", vel.x), String.format("%.3f", vel.y), String.format("%.3f", vel.z),
+                String.format("%.3f", Math.sqrt(vel.x * vel.x + vel.z * vel.z) * 20.0),
+                String.format("%.3f", this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED)),
+                String.format("%.3f", this.getAttributeValue(Attributes.MOVEMENT_SPEED)),
+                modifiers, effects,
+                this.onGround(), this.isInWater(), this.isSwimming(), this.isInPowderSnow,
+                this.level().getBlockState(this.blockPosition()).getBlock().builtInRegistryHolder().key().location(),
+                this.level().getBlockState(this.blockPosition().below()).getBlock().builtInRegistryHolder().key().location(),
+                this.hasCrystal(), this.isBaby(), this.isOrderedToSit(), this.isTame(),
+                owner == null ? "none" : String.format("%.2f", this.distanceTo(owner)),
+                walk, attack, activity,
+                nav.isDone(), path == null ? -1 : path.getNodeCount(), path == null ? -1 : path.getNextNodeIndex(), nav.isStuck(),
+                this.tickCount, String.format("%.2f", this.fallDistance),
+                String.format("%.1f", this.getYRot()), String.format("%.1f", this.yBodyRot), String.format("%.1f", this.yHeadRot),
+                String.format("%.1f", moveDirYaw), String.format("%.1f", yawErr),
+                this.getMoveControl().getClass().getSimpleName(), this.getMoveControl().hasWanted(),
+                String.format("%.3f", this.getMoveControl().getSpeedModifier()), String.format("%.3f", this.getSpeed()),
+                this.getBrain().getMemory(MemoryModuleType.LOOK_TARGET).isPresent(),
+                this.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_COOLING_DOWN));
+    }
+
+    @Override
+    public boolean isInSittingPose() {
+        return this.isTame() && super.isInSittingPose();
+    }
+
+    @Override
+    public boolean isOrderedToSit() {
+        return this.isTame() && super.isOrderedToSit();
+    }
+
     public boolean hasCrystal() {
         return this.entityData.get(HAS_CRYSTAL);
     }
@@ -376,13 +507,16 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (stack.isEmpty() && this.isTame() && this.isOwnedBy(player)) {
-            this.setOrderedToSit(!this.isOrderedToSit());
-            if (this.isOrderedToSit()) {
-                this.getBrain().setMemory(GMemoryModuleTypes.SIT_ORIGIN, this.blockPosition());
-                this.setTarget(null);
-                this.getNavigation().stop();
-            } else {
-                this.getBrain().eraseMemory(GMemoryModuleTypes.SIT_ORIGIN);
+            if (!this.level().isClientSide()) {
+                this.setOrderedToSit(!this.isOrderedToSit());
+                this.setInSittingPose(this.isOrderedToSit());
+                if (this.isOrderedToSit()) {
+                    this.getBrain().setMemory(GMemoryModuleTypes.SIT_ORIGIN, this.blockPosition());
+                    this.setTarget(null);
+                    this.getNavigation().stop();
+                } else {
+                    this.getBrain().eraseMemory(GMemoryModuleTypes.SIT_ORIGIN);
+                }
             }
             return InteractionResult.SUCCESS;
         }
