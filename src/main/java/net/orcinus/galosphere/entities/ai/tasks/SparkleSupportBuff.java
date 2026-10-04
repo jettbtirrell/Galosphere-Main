@@ -3,6 +3,7 @@ package net.orcinus.galosphere.entities.ai.tasks;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.behavior.Behavior;
@@ -22,13 +23,18 @@ import net.orcinus.galosphere.entities.SparkleBuffSpit;
 /**
  * Lumiere support ability: while a hostile is actively targeting the owner and the
  * Sparkle is in range, it fires a buff dart at the owner instead of fighting itself.
+ * Holds the same kind of distance band from the owner that Allurite holds from an
+ * enemy, just shifted a bit closer.
  */
 public class SparkleSupportBuff extends Behavior<Sparkle> {
-    private static final double MAX_RANGE = 12.0;
+    private static final double MAX_RANGE = 10.0;
+    private static final double MIN_RANGE = 4.0;
+    private static final double APPROACH_RANGE = 7.0;
     private static final double ENEMY_SCAN_RADIUS = 20.0;
     private static final double CLOSE_RANGE = 2.0;
     private static final double FACING_DOT = 0.5;
     private static final int COOLDOWN_TICKS = 100;
+    private static final float BACKAWAY_TURN_SPEED = 12.0F;
 
     public SparkleSupportBuff() {
         super(ImmutableMap.of(MemoryModuleType.ATTACK_COOLING_DOWN, MemoryStatus.VALUE_ABSENT));
@@ -54,12 +60,40 @@ public class SparkleSupportBuff extends Behavior<Sparkle> {
         if (!(sparkle.getOwner() instanceof Player player)) {
             return;
         }
-        BehaviorUtils.lookAtEntity(sparkle, player);
+        double horizontalDistSq = this.horizontalDistSq(sparkle, player);
+        boolean retreating = horizontalDistSq < MIN_RANGE * MIN_RANGE;
+        if (retreating) {
+            this.backAway(sparkle, player);
+        } else {
+            BehaviorUtils.lookAtEntity(sparkle, player);
+        }
         boolean onCooldown = sparkle.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_COOLING_DOWN);
         if (!onCooldown && this.hasClearShot(sparkle, player) && this.isFacing(sparkle, player)) {
             this.shoot(sparkle, player);
             sparkle.getBrain().setMemoryWithExpiry(MemoryModuleType.ATTACK_COOLING_DOWN, true, COOLDOWN_TICKS);
         }
+        if (!retreating && horizontalDistSq > APPROACH_RANGE * APPROACH_RANGE) {
+            BehaviorUtils.setWalkAndLookTargetMemories(sparkle, player, 1.0F, (int) APPROACH_RANGE);
+        }
+    }
+
+    private double horizontalDistSq(Sparkle sparkle, Player player) {
+        double dx = player.getX() - sparkle.getX();
+        double dz = player.getZ() - sparkle.getZ();
+        return dx * dx + dz * dz;
+    }
+
+    private void backAway(Sparkle sparkle, Player player) {
+        double dx = player.getX() - sparkle.getX();
+        double dz = player.getZ() - sparkle.getZ();
+        float targetYaw = (float) (Mth.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0F;
+        float newYaw = Mth.approachDegrees(sparkle.getYRot(), targetYaw, BACKAWAY_TURN_SPEED);
+        sparkle.setYRot(newYaw);
+        sparkle.setYBodyRot(newYaw);
+        sparkle.setYHeadRot(targetYaw);
+        sparkle.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
+        sparkle.getNavigation().stop();
+        sparkle.getMoveControl().strafe(-1.0F, 0.0F);
     }
 
     private boolean isEnemyEngaged(Sparkle sparkle, Player player) {
