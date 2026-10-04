@@ -6,6 +6,7 @@ import net.orcinus.galosphere.Galosphere;
 public class GModelLayers {
 
     public static final ModelLayerLocation SPARKLE = register("sparkle");
+    public static final ModelLayerLocation SPARKLE_SPIT = register("sparkle_spit");
     public static final ModelLayerLocation SPECTRE = register("spectre");
     public static final ModelLayerLocation SPECTERPILLAR = register("specterpillar");
     public static final ModelLayerLocation STERLING_HELMET = register("sterling_helmet");

@@ -11,6 +11,7 @@ import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.AnimalMakeLove;
 import net.minecraft.world.entity.ai.behavior.AnimalPanic;
 import net.minecraft.world.entity.ai.behavior.BabyFollowAdult;
+import net.minecraft.world.entity.ai.behavior.BehaviorControl;
 import net.minecraft.world.entity.ai.behavior.CountDownCooldownTicks;
 import net.minecraft.world.entity.ai.behavior.FollowTemptation;
 import net.minecraft.world.entity.ai.behavior.GateBehavior;
@@ -32,6 +33,8 @@ import net.orcinus.galosphere.entities.ai.tasks.FollowOwner;
 import net.orcinus.galosphere.entities.ai.tasks.SitSuppressed;
 import net.orcinus.galosphere.entities.ai.tasks.SparkleMeleeAttack;
 import net.orcinus.galosphere.entities.ai.tasks.SparkleRangedAttack;
+import net.orcinus.galosphere.entities.ai.tasks.SparkleSupportBuff;
+import net.orcinus.galosphere.entities.ai.tasks.SuppressedWhile;
 import net.orcinus.galosphere.entities.ai.tasks.WalkToPollinatedCluster;
 import net.orcinus.galosphere.init.GEntityTypes;
 import net.orcinus.galosphere.init.GItemTags;
@@ -50,31 +53,32 @@ public class SparkleAi {
 
     private static void initCoreActivity(Brain<Sparkle> brain) {
         brain.addActivity(Activity.CORE, 0, ImmutableList.of(
-                new AnimalPanic<>(1.5F),
+                new SuppressedWhile(new AnimalPanic<>(1.1F), sparkle -> sparkle.isOrderedToSit() || sparkle.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_TARGET)),
                 new LookAtTargetSink(45, 90),
                 new MoveToTargetSink(),
                 new CountDownCooldownTicks(MemoryModuleType.TEMPTATION_COOLDOWN_TICKS),
                 StopAttackingIfTargetInvalid.<Sparkle>create(),
-                new SparkleMeleeAttack(),
-                new SparkleRangedAttack()
+                new SitSuppressed(new SparkleMeleeAttack()),
+                new SitSuppressed(new SparkleRangedAttack()),
+                new SitSuppressed(new SparkleSupportBuff())
         ));
     }
 
     private static void initIdleActivity(Brain<Sparkle> brain) {
         brain.addActivityWithConditions(Activity.IDLE, ImmutableList.of(
-                        Pair.of(0, new AnimalMakeLove(GEntityTypes.SPARKLE, 1.0F, 2)),
+                        Pair.of(0, inCombat(new AnimalMakeLove(GEntityTypes.SPARKLE, 1.0F, 2))),
                         Pair.of(1, new FollowOwner(1.0F, 2)),
-                        Pair.of(2, new SitSuppressed(new FollowTemptation((entity) -> 1.5F))),
-                        Pair.of(3, new SitSuppressed(BabyFollowAdult.create(UniformInt.of(5, 16), 1.25f))),
-                        Pair.of(4, new WalkToPollinatedCluster()),
-                        Pair.of(5, new SitSuppressed(TryFindLand.create(6, 1.0F))),
-                        Pair.of(6, new SitSuppressed(new RunOne<>(
+                        Pair.of(2, inCombat(new SitSuppressed(new FollowTemptation((entity) -> 1.1F)))),
+                        Pair.of(3, inCombat(new SitSuppressed(BabyFollowAdult.create(UniformInt.of(5, 16), 1.1f)))),
+                        Pair.of(4, inCombat(new SitSuppressed(new WalkToPollinatedCluster()))),
+                        Pair.of(5, inCombat(new SitSuppressed(TryFindLand.create(6, 1.0F)))),
+                        Pair.of(6, inCombat(new SitSuppressed(new RunOne<>(
                                 ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT),
                                 ImmutableList.of(
                                         Pair.of(RandomStroll.stroll(1.0F), 1),
                                         Pair.of(SetWalkTargetFromLookTarget.create(1.0F, 3), 1),
                                         Pair.of(BehaviorBuilder.triggerIf(Entity::onGround), 2)
-                                ))))
+                                )))))
                 ),
                 ImmutableSet.of(Pair.of(MemoryModuleType.IS_IN_WATER, MemoryStatus.VALUE_ABSENT)));
     }
@@ -83,10 +87,10 @@ public class SparkleAi {
         brain.addActivityWithConditions(Activity.SWIM, ImmutableList.of(
                         Pair.of(0, SetEntityLookTargetSometimes.create(EntityType.PLAYER, 6.0F, UniformInt.of(30, 60))),
                         Pair.of(1, new FollowOwner(1.0F, 2)),
-                        Pair.of(2, new SitSuppressed(new FollowTemptation((entity) -> 1.5F))),
-                        Pair.of(3, new WalkToPollinatedCluster()),
-                        Pair.of(4, new SitSuppressed(TryFindLand.create(8, 1.5F))),
-                        Pair.of(5, new SitSuppressed(new GateBehavior<>(
+                        Pair.of(2, inCombat(new SitSuppressed(new FollowTemptation((entity) -> 1.1F)))),
+                        Pair.of(3, inCombat(new SitSuppressed(new WalkToPollinatedCluster()))),
+                        Pair.of(4, inCombat(new SitSuppressed(TryFindLand.create(8, 1.1F)))),
+                        Pair.of(5, inCombat(new SitSuppressed(new GateBehavior<>(
                                 ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT),
                                 ImmutableSet.of(),
                                 GateBehavior.OrderPolicy.ORDERED,
@@ -96,8 +100,12 @@ public class SparkleAi {
                                         Pair.of(RandomStroll.stroll(1.0F, true), 1),
                                         Pair.of(SetWalkTargetFromLookTarget.create(1.0F, 3), 1),
                                         Pair.of(BehaviorBuilder.triggerIf(Entity::isInWaterOrBubble), 5)
-                                ))))),
+                                )))))),
                 ImmutableSet.of(Pair.of(MemoryModuleType.IS_IN_WATER, MemoryStatus.VALUE_PRESENT)));
+    }
+
+    private static SuppressedWhile inCombat(BehaviorControl<? super Sparkle> behavior) {
+        return new SuppressedWhile(behavior, sparkle -> sparkle.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_TARGET));
     }
 
     public static void updateActivity(Sparkle entity) {

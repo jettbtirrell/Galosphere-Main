@@ -35,10 +35,11 @@ public class SparkleMeleeAttack extends Behavior<Sparkle> {
             return;
         }
         BehaviorUtils.lookAtEntity(sparkle, target);
-        if (sparkle.distanceToSqr(target) <= REACH_SQ) {
+        boolean onCooldown = sparkle.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_COOLING_DOWN);
+        if (!onCooldown && sparkle.distanceToSqr(target) <= REACH_SQ) {
             sparkle.doHurtTarget(target);
             sparkle.getBrain().setMemoryWithExpiry(MemoryModuleType.ATTACK_COOLING_DOWN, true, COOLDOWN_TICKS);
-        } else {
+        } else if (sparkle.distanceToSqr(target) > REACH_SQ) {
             BehaviorUtils.setWalkAndLookTargetMemories(sparkle, target, 1.0F, 1);
         }
     }

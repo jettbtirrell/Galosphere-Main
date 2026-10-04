@@ -19,7 +19,10 @@ import net.orcinus.galosphere.entities.Sparkle;
 @Environment(EnvType.CLIENT)
 public class SparkleModel<T extends Sparkle> extends AgeableListModel<T> {
 	private static final float LIMB_SWING_SCALE = 0.5F;
+	private static final float TAIL_SWING_SCALE = 0.5F;
 	private static final float SIT_HEAD_TILT = 0.35F;
+	private static final float HEAD_BOB_FREQUENCY = 2.0F;
+	private static final float HEAD_BOB_AMOUNT = 0.15F;
 	private static final float TAIL_FULL_HEALTH_PITCH = 0.1745F;
 	private static final float TAIL_LOW_HEALTH_PITCH = -0.1745F;
 	private final ModelPart body;
@@ -77,7 +80,7 @@ public class SparkleModel<T extends Sparkle> extends AgeableListModel<T> {
 	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 		if (entity.isInWaterOrBubble()) {
 			this.body.yRot = Mth.cos(ageInTicks / 2.0F) / 8.0F;
-			this.tail.yRot = Mth.sin(ageInTicks / 2.0F) / 3.5F;
+			this.tail.yRot = Mth.sin(ageInTicks / 4.0F) / 3.5F;
 			this.leftLeg.xRot = 0.0F;
 			this.leftLeg.yRot = 0.0F;
 			this.rightLeg.xRot = 0.0F;
@@ -97,10 +100,11 @@ public class SparkleModel<T extends Sparkle> extends AgeableListModel<T> {
 			this.leftArm.yRot = Mth.cos(swing * 1.5F) * limbSwingAmount * 2.0F;
 			this.rightArm.xRot = Mth.sin(swing) * limbSwingAmount;
 			this.rightArm.yRot = Mth.cos(swing) * limbSwingAmount * 2.0F;
-			this.tail.yRot = Mth.cos(swing) * limbSwingAmount * 0.5F;
+			this.tail.yRot = Mth.cos(swing * TAIL_SWING_SCALE) * limbSwingAmount * 0.5F;
 		}
 		this.tail.xRot = Mth.lerp(entity.getHealth() / entity.getMaxHealth(), TAIL_LOW_HEALTH_PITCH, TAIL_FULL_HEALTH_PITCH);
-		this.head.yRot = netHeadYaw * ((float) Math.PI / 180F);
+		float headBobSwing = limbSwing * LIMB_SWING_SCALE * HEAD_BOB_FREQUENCY;
+		this.head.yRot = netHeadYaw * ((float) Math.PI / 180F) + Mth.cos(headBobSwing) * HEAD_BOB_AMOUNT * limbSwingAmount;
 		this.head.xRot = headPitch * ((float) Math.PI / 180F) + (entity.isInSittingPose() ? SIT_HEAD_TILT : 0.0F);
 	}
 

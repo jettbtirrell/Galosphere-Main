@@ -40,6 +40,8 @@ import net.orcinus.galosphere.client.renderer.PinkSaltPillarRenderer;
 import net.orcinus.galosphere.client.renderer.PinkSaltShardRenderer;
 import net.orcinus.galosphere.client.renderer.PreservedRenderer;
 import net.orcinus.galosphere.client.renderer.SparkleRenderer;
+import net.orcinus.galosphere.client.renderer.GlowingCubeProjectileRenderer;
+import net.orcinus.galosphere.client.renderer.SparkleBuffSpitRenderer;
 import net.orcinus.galosphere.client.renderer.SparkleSpitRenderer;
 import net.orcinus.galosphere.client.renderer.SpectatorVisionRenderer;
 import net.orcinus.galosphere.client.renderer.SpecterpillarRenderer;
@@ -117,8 +119,10 @@ public class GalosphereClient implements ClientModInitializer {
         EntityRendererRegistry.register(GEntityTypes.PRESERVED, PreservedRenderer::new);
         EntityRendererRegistry.register(GEntityTypes.PINK_SALT_SHARD, PinkSaltShardRenderer::new);
         EntityRendererRegistry.register(GEntityTypes.SPARKLE_SPIT, SparkleSpitRenderer::new);
+        EntityRendererRegistry.register(GEntityTypes.SPARKLE_BUFF_SPIT, SparkleBuffSpitRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(GModelLayers.SPARKLE, SparkleModel::createBodyLayer);
+        EntityModelLayerRegistry.registerModelLayer(GModelLayers.SPARKLE_SPIT, GlowingCubeProjectileRenderer::createBodyLayer);
         EntityModelLayerRegistry.registerModelLayer(GModelLayers.SPECTRE, SpectreModel::createBodyLayer);
         EntityModelLayerRegistry.registerModelLayer(GModelLayers.SPECTERPILLAR, SpecterpillarModel::createBodyLayer);
         EntityModelLayerRegistry.registerModelLayer(GModelLayers.BERSERKER, BerserkerModel::createBodyLayer);

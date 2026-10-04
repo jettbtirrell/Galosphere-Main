@@ -206,13 +206,21 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
     @Override
     public boolean hurt(DamageSource source, float amount) {
         boolean hurt = super.hurt(source, amount);
-        if (hurt && !this.level().isClientSide() && !this.isTame()) {
+        if (hurt && !this.level().isClientSide()) {
             Entity attacker = source.getEntity();
-            if (attacker instanceof LivingEntity livingAttacker) {
-                this.setPersistentAngerTarget(livingAttacker.getUUID());
-                this.startPersistentAngerTimer();
-                this.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, livingAttacker);
-                this.alertNearbyWildSparkles(livingAttacker);
+            if (attacker instanceof LivingEntity livingAttacker && this.canAttack(livingAttacker)) {
+                if (this.isTame()) {
+                    // Tamed Sparkles retaliate against whoever directly hit them, even if
+                    // the owner was never touched — otherwise a lost/timed-out ATTACK_TARGET
+                    // leaves them defenseless (FollowOwner takes back over and they just
+                    // run home while getting hit).
+                    this.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, livingAttacker);
+                } else {
+                    this.setPersistentAngerTarget(livingAttacker.getUUID());
+                    this.startPersistentAngerTimer();
+                    this.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, livingAttacker);
+                    this.alertNearbyWildSparkles(livingAttacker);
+                }
             }
         }
         return hurt;
@@ -315,12 +323,12 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
 
     @Override
     public int getMaxHeadXRot() {
-        return 1;
+        return 30;
     }
 
     @Override
     public int getMaxHeadYRot() {
-        return 1;
+        return 50;
     }
 
     @Override

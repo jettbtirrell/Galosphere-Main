@@ -28,18 +28,9 @@ public class WalkToPollinatedCluster extends Behavior<Sparkle> {
         this.setCooldownOnly = false;
     }
 
-    private static final int SIT_PATROL_RADIUS = 10;
-
     @Override
     protected boolean checkExtraStartConditions(ServerLevel world, Sparkle entity) {
-        return !entity.isBaby() && this.getNearestCluster(entity).filter(pos -> this.isWithinSitPatrolRadius(entity, pos)).isPresent() && !entity.getBrain().hasMemoryValue(MemoryModuleType.BREED_TARGET) && !entity.getBrain().hasMemoryValue(MemoryModuleType.IS_PANICKING);
-    }
-
-    private boolean isWithinSitPatrolRadius(Sparkle entity, BlockPos clusterPos) {
-        if (!entity.isOrderedToSit()) {
-            return true;
-        }
-        return entity.getBrain().getMemory(GMemoryModuleTypes.SIT_ORIGIN).map(origin -> origin.closerThan(clusterPos, SIT_PATROL_RADIUS)).orElse(true);
+        return !entity.isBaby() && this.getNearestCluster(entity).isPresent() && !entity.getBrain().hasMemoryValue(MemoryModuleType.BREED_TARGET) && !entity.getBrain().hasMemoryValue(MemoryModuleType.IS_PANICKING);
     }
 
     @Override
@@ -48,7 +39,7 @@ public class WalkToPollinatedCluster extends Behavior<Sparkle> {
             this.setCooldownOnly = true;
             return false;
         } else {
-            return this.sniffingTicks > 0 && this.getNearestCluster(entity).filter(pos -> this.isWithinSitPatrolRadius(entity, pos)).map(world::getBlockState).filter(this::isPollinatedCluster).isPresent();
+            return this.sniffingTicks > 0 && this.getNearestCluster(entity).map(world::getBlockState).filter(this::isPollinatedCluster).isPresent();
         }
     }
 
@@ -71,7 +62,7 @@ public class WalkToPollinatedCluster extends Behavior<Sparkle> {
             } else {
                 this.stuckTicks++;
             }
-            BehaviorUtils.setWalkAndLookTargetMemories(entity, blockPos, 1.5F, 0);
+            BehaviorUtils.setWalkAndLookTargetMemories(entity, blockPos, 1.1F, 0);
         });
     }
 

@@ -3,6 +3,7 @@ package net.orcinus.galosphere.entities.ai.tasks;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.entity.ai.behavior.Behavior;
@@ -17,12 +18,13 @@ import net.orcinus.galosphere.entities.Sparkle;
 import net.orcinus.galosphere.entities.SparkleSpit;
 
 public class SparkleRangedAttack extends Behavior<Sparkle> {
-    private static final double MAX_RANGE = 10.0;
-    private static final double MIN_RANGE = 4.0;
-    private static final double APPROACH_RANGE = 7.0;
+    private static final double MAX_RANGE = 12.0;
+    private static final double MIN_RANGE = 6.0;
+    private static final double APPROACH_RANGE = 9.0;
     private static final double CLOSE_RANGE = 2.0;
     private static final double FACING_DOT = 0.5;
     private static final int COOLDOWN_TICKS = 20;
+    private static final float BACKAWAY_TURN_SPEED = 12.0F;
     private int seeTime;
 
     public SparkleRangedAttack() {
@@ -32,7 +34,7 @@ public class SparkleRangedAttack extends Behavior<Sparkle> {
     @Override
     protected boolean checkExtraStartConditions(ServerLevel level, Sparkle sparkle) {
         LivingEntity target = sparkle.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
-        return sparkle.hasCrystal() && !sparkle.isBaby() && target != null && target.isAlive() && target.level() == sparkle.level();
+        return sparkle.hasCrystal() && sparkle.getVariant() == Sparkle.BirthType.ALLURITE && !sparkle.isBaby() && target != null && target.isAlive() && target.level() == sparkle.level();
     }
 
     @Override
@@ -51,7 +53,14 @@ public class SparkleRangedAttack extends Behavior<Sparkle> {
         if (target == null) {
             return;
         }
-        BehaviorUtils.lookAtEntity(sparkle, target);
+        double distSq = sparkle.distanceToSqr(target);
+        double horizontalDistSq = this.horizontalDistSq(sparkle, target);
+        boolean retreating = horizontalDistSq < MIN_RANGE * MIN_RANGE;
+        if (retreating) {
+            this.backAway(sparkle, target);
+        } else {
+            BehaviorUtils.lookAtEntity(sparkle, target);
+        }
         boolean canSee = this.hasClearShot(sparkle, target);
         if (canSee) {
             this.seeTime++;
@@ -59,17 +68,20 @@ public class SparkleRangedAttack extends Behavior<Sparkle> {
             this.seeTime = 0;
         }
         boolean onCooldown = sparkle.getBrain().hasMemoryValue(MemoryModuleType.ATTACK_COOLING_DOWN);
-        double distSq = sparkle.distanceToSqr(target);
         if (!onCooldown && distSq <= MAX_RANGE * MAX_RANGE && canSee && this.isFacing(sparkle, target) && this.seeTime >= 5) {
             this.shoot(sparkle, target);
             sparkle.getBrain().setMemoryWithExpiry(MemoryModuleType.ATTACK_COOLING_DOWN, true, COOLDOWN_TICKS);
             this.seeTime = 0;
         }
-        if (distSq < MIN_RANGE * MIN_RANGE) {
-            this.backAway(sparkle);
-        } else if (distSq > APPROACH_RANGE * APPROACH_RANGE) {
+        if (!retreating && horizontalDistSq > APPROACH_RANGE * APPROACH_RANGE) {
             BehaviorUtils.setWalkAndLookTargetMemories(sparkle, target, 1.0F, (int) APPROACH_RANGE);
         }
+    }
+
+    private double horizontalDistSq(Sparkle sparkle, LivingEntity target) {
+        double dx = target.getX() - sparkle.getX();
+        double dz = target.getZ() - sparkle.getZ();
+        return dx * dx + dz * dz;
     }
 
     private boolean isFacing(Sparkle sparkle, LivingEntity target) {
@@ -84,7 +96,14 @@ public class SparkleRangedAttack extends Behavior<Sparkle> {
         return lookLength > 1.0E-4 && (look.x * dx + look.z * dz) / (dist * lookLength) >= FACING_DOT;
     }
 
-    private void backAway(Sparkle sparkle) {
+    private void backAway(Sparkle sparkle, LivingEntity target) {
+        double dx = target.getX() - sparkle.getX();
+        double dz = target.getZ() - sparkle.getZ();
+        float targetYaw = (float) (Mth.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0F;
+        float newYaw = Mth.approachDegrees(sparkle.getYRot(), targetYaw, BACKAWAY_TURN_SPEED);
+        sparkle.setYRot(newYaw);
+        sparkle.setYBodyRot(newYaw);
+        sparkle.setYHeadRot(targetYaw);
         sparkle.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
         sparkle.getNavigation().stop();
         sparkle.getMoveControl().strafe(-1.0F, 0.0F);
@@ -99,17 +118,18 @@ public class SparkleRangedAttack extends Behavior<Sparkle> {
 
     private Vec3 shotOrigin(Sparkle sparkle) {
         Vec3 look = sparkle.getViewVector(1.0F);
-        double forwardOffset = sparkle.getBbWidth() / 2.0 + 0.4;
+        double forwardOffset = sparkle.getBbWidth() / 2.0 + 0.9;
         return new Vec3(sparkle.getX() + look.x * forwardOffset, sparkle.getEyeY() - 0.1, sparkle.getZ() + look.z * forwardOffset);
     }
 
     private void shoot(Sparkle sparkle, LivingEntity target) {
         SparkleSpit spit = new SparkleSpit(sparkle, sparkle.level());
+        spit.setTarget(target);
         Vec3 origin = this.shotOrigin(sparkle);
         spit.setPos(origin.x, origin.y, origin.z);
         Vec3 aim = target.position().add(0.0, target.getBbHeight() * 0.5, 0.0);
         Vec3 delta = aim.subtract(origin);
-        spit.shoot(delta.x, delta.y, delta.z, 1.6F, 2.0F);
+        spit.shoot(delta.x, delta.y, delta.z, 0.8F, 2.0F);
         sparkle.level().addFreshEntity(spit);
         sparkle.level().playSound(null, sparkle, Block.byItem(sparkle.getVariant().getSilktouchItem()).defaultBlockState().getSoundType().getBreakSound(), SoundSource.NEUTRAL, 1.0F, 1.0F + (sparkle.getRandom().nextFloat() - sparkle.getRandom().nextFloat()) * 0.2F);
     }
