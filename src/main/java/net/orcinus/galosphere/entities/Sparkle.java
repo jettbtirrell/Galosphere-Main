@@ -38,6 +38,7 @@ import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.VariantHolder;
 import net.minecraft.world.entity.ai.Brain;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
@@ -297,8 +298,12 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
         return false;
     }
 
+    private static final double BASE_MOVEMENT_SPEED = 0.3;
+    private static final double LUMIERE_GROWN_MOVEMENT_SPEED = 0.35;
+    private static final double ALLURITE_GROWN_MOVEMENT_SPEED = 0.25;
+
     public static AttributeSupplier.Builder createAttributes() {
-        return Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, 0.3).add(Attributes.MAX_HEALTH, 15.0).add(Attributes.ATTACK_DAMAGE, 3.0);
+        return Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, BASE_MOVEMENT_SPEED).add(Attributes.MAX_HEALTH, 15.0).add(Attributes.ATTACK_DAMAGE, 3.0);
     }
 
     @Override
@@ -383,6 +388,19 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
     @Override
     public void setVariant(BirthType birthType) {
         this.entityData.set(BIRTH_TYPE, birthType.getId());
+        this.updateMovementSpeed();
+    }
+
+    private void updateMovementSpeed() {
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) {
+            return;
+        }
+        double value = BASE_MOVEMENT_SPEED;
+        if (this.hasCrystal()) {
+            value = this.getVariant() == BirthType.LUMIERE ? LUMIERE_GROWN_MOVEMENT_SPEED : ALLURITE_GROWN_MOVEMENT_SPEED;
+        }
+        speed.setBaseValue(value);
     }
 
     @Override
@@ -475,6 +493,7 @@ public class Sparkle extends TamableAnimal implements VariantHolder<Sparkle.Birt
 
     public void setHasCrystal(boolean hasCrystal) {
         this.entityData.set(HAS_CRYSTAL, hasCrystal);
+        this.updateMovementSpeed();
     }
 
     @Override

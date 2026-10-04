@@ -41,7 +41,7 @@ public class SparkleSupportBuff extends Behavior<Sparkle> {
         }
         LivingEntity owner = sparkle.getOwner();
         return owner instanceof Player player && player.isAlive() && player.level() == sparkle.level()
-                && sparkle.distanceTo(player) <= MAX_RANGE && this.isBeingTargeted(sparkle, player);
+                && sparkle.distanceTo(player) <= MAX_RANGE && this.isEnemyEngaged(sparkle, player);
     }
 
     @Override
@@ -62,7 +62,13 @@ public class SparkleSupportBuff extends Behavior<Sparkle> {
         }
     }
 
-    private boolean isBeingTargeted(Sparkle sparkle, Player player) {
+    private boolean isEnemyEngaged(Sparkle sparkle, Player player) {
+        // Either something is actively hunting the player, or the player started a
+        // fight themselves — that counts until whatever they last hit dies.
+        LivingEntity lastHurtByPlayer = player.getLastHurtMob();
+        if (lastHurtByPlayer != null && lastHurtByPlayer.isAlive()) {
+            return true;
+        }
         AABB area = player.getBoundingBox().inflate(ENEMY_SCAN_RADIUS);
         return !sparkle.level().getEntitiesOfClass(Mob.class, area, mob -> mob.getTarget() == player).isEmpty();
     }

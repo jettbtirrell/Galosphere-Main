@@ -21,6 +21,7 @@ public class SparkleBuffSpit extends AbstractArrow {
     private static final int MAX_LIFE_TICKS = 100;
     private static final double HOMING_STRENGTH = 0.15;
     private static final int BUFF_DURATION_TICKS = 200;
+    private static final float HEAL_AMOUNT = 2.0F;
     private int ticksAlive;
     private Player buffTarget;
 
@@ -73,6 +74,7 @@ public class SparkleBuffSpit extends AbstractArrow {
         // just absorbs it harmlessly; no damage is ever dealt by this projectile.
         if (result.getEntity() == this.buffTarget && this.buffTarget != null) {
             this.buffTarget.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, BUFF_DURATION_TICKS, 2, false, true));
+            this.buffTarget.heal(HEAL_AMOUNT);
             this.spawnHitParticles();
         }
         this.discard();
