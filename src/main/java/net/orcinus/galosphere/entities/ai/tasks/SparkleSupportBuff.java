@@ -47,7 +47,7 @@ public class SparkleSupportBuff extends Behavior<Sparkle> {
         }
         LivingEntity owner = sparkle.getOwner();
         return owner instanceof Player player && player.isAlive() && player.level() == sparkle.level()
-                && sparkle.distanceTo(player) <= MAX_RANGE && this.isEnemyEngaged(sparkle, player);
+                && sparkle.distanceTo(player) <= MAX_RANGE && this.needsSupport(sparkle, player);
     }
 
     @Override
@@ -96,7 +96,10 @@ public class SparkleSupportBuff extends Behavior<Sparkle> {
         sparkle.getMoveControl().strafe(-1.0F, 0.0F);
     }
 
-    private boolean isEnemyEngaged(Sparkle sparkle, Player player) {
+    private boolean needsSupport(Sparkle sparkle, Player player) {
+        if (player.isSprinting()) {
+            return true;
+        }
         // Either something is actively hunting the player, or the player started a
         // fight themselves — that counts until whatever they last hit dies.
         LivingEntity lastHurtByPlayer = player.getLastHurtMob();
